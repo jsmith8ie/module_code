@@ -1,7 +1,12 @@
 #standard peak widths
 
+#require pracma
+
+require(pracma)
+
 #anion peaks (separate from Nitrite)
 #function to identify peaks (minutes: start, end, and RT of max of each peak)
+
 std_peak_widths <- function(data) {
   #Peak identification - standards
   anion_std <- c("Anion_Std_1",

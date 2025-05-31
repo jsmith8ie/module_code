@@ -220,4 +220,7 @@ mice_peaks_df2 <- mice_peaks_df2 %>%
 nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
 #happy it worked, copy over
 
-mice_peaks_df <- mice_peaks_df2 
+mice_peaks_df <- mice_peaks_df2
+
+
+

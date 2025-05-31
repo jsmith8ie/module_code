@@ -51,7 +51,15 @@ p6 <- m6 %>% ggplot(aes(x=Minutes, y=Conductivity)) + geom_line() +
   facet_wrap(~Day) +
   theme_bw()
 
-#plots per day, by mouse -look at all peaks across all days
+p1
+p2
+p3
+p4
+p5
+p6
+
+#compare peaks per day, for each mouse
+#days variable
 days
 
 for (day in days) {
@@ -156,7 +164,7 @@ pn2 <- nitrite2 %>%
   scale_x_continuous(limits = c(0, NA), breaks= seq(from=0, to=22, by=2)) +
   theme_bw()
 
-#potentially contaminated? many peaks.... might omit
+#potentially contaminated? many peaks....omit
 pn3 <- nitrite3 %>%
   ggplot(aes(x=Minutes, y=Conductivity))+
   geom_line() + 
@@ -175,3 +183,13 @@ pn4 <- nitrite4 %>%
   scale_x_continuous(limits = c(0, NA), breaks= seq(from=0, to=22, by=2)) +
   theme_bw()
 
+
+pstd1
+pstd2
+pstd3
+pstd4
+
+pn1
+pn2
+pn3
+pn4

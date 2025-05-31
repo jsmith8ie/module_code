@@ -2,7 +2,6 @@
 library(tidyverse)
 library(lubridate)
 library(stringr)
-library(Hmisc)
 library(tools)
 library(flux)
 library(pracma)
@@ -76,9 +75,10 @@ for (file in file_list) {
 # Combine all files into single data frame
 data <- do.call(rbind, data_list)
 
-
 #read in other data (primarily interested in standards)
 #reading in standards etc
+#reset wd
+
 
 file_list <- list.files(pattern = "\\.txt$")
 data_list <- list()
@@ -132,3 +132,5 @@ for (file in file_list) {
 
 # Combine all files into single data frame
 std_data <- do.call(rbind, data_list) 
+
+

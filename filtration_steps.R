@@ -8,7 +8,7 @@ check <- mice_peaks_df %>% group_by(Mouse) %>% summarise(ions = unique(Ion),
 
 check.table <- table(check$ions)
 #Fluoride appears in only one mouse - filter.
-#Nitrite only appears in one mouse filter
+#Nitrite only appears in one mouse - filter
 #All other ions appear in all 6 mice. 
 
 #filter steps
@@ -19,6 +19,8 @@ mice_peaks_df2 <- mice_peaks_df2 %>% filter(Ion!= "Nitrite")
 unique(mice_peaks_df2$Ion)
 #copy over
 mice_peaks_df <- mice_peaks_df2
+
+#next step:
 #check that variable appears in at least 50% of time points
 total <- length(unique(mice_peaks_df$Day))
 
@@ -46,7 +48,7 @@ mod.data <- pivot_wider(mice_peaks_df , names_from = Ion, values_from=AUC)
 mod.data <- mod.data[,(4:9)]
 
 #examine filtered variables
-#boxplots by mouse
+#boxplots by mouse showing distribution of auc for each variable
 p_chloride <- ggplot(mod.data) + geom_boxplot(aes(x=Chloride), na.rm=TRUE) +facet_wrap(~Mouse)+ 
   labs(title="Chloride AUC Boxplots",
        x="AUC")
@@ -64,12 +66,17 @@ p_e <- ggplot(mod.data) + geom_boxplot(aes(x=E), na.rm=TRUE) +facet_wrap(~Mouse)
   labs(title="Peak E AUC Boxplots",
        x="AUC")
 
+p_chloride
+p_sulfate
+p_a
+p_e
 
+##some variation shown between with above boxplots
+#however very similar median across mice, at each variable
+#except peak E mouse 6
 
 #NAs handling
 mod.data <- replace(mod.data, is.na(mod.data), 0)
-
-
 
 #check class
 class(mod.data$Day)

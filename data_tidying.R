@@ -1,5 +1,5 @@
 #tidy anion data
-data
+head(data)
 
 #investigate class of variables, ensure correct
 #no consistency between standards' formatting
@@ -71,6 +71,8 @@ data2$Day<- as.numeric(data2$Day)
 #copy over to data
 data <- data2
 unique(data$Day)
+
+
 
 #subset data - concerned primarily with mice data (not control)
 #Select anion samples only
@@ -179,3 +181,7 @@ nitrite1 <- std_data %>% dplyr::filter(std_data$Ident == "Nitrite_Std_1")
 nitrite2 <- std_data %>% dplyr::filter(std_data$Ident == "Nitrite_Std_2")
 nitrite3 <- std_data %>% dplyr::filter(std_data$Ident == "Nitrite_Std_3")
 nitrite4 <- std_data %>% dplyr::filter(std_data$Ident == "Nitrite_Std_4")
+
+
+#bind all together
+std <- rbind(std1, std2, std3, std4, nitrite1, nitrite2, nitrite3, nitrite4)
