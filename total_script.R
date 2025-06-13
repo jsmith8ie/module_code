@@ -396,7 +396,6 @@ for (day in days) {
   print(p)
 }
 
-
 #standards
 #examine standard by date
 
@@ -792,8 +791,8 @@ RT_anions <- std_peaks_df %>%
 
 for(anion in vec_anions){
   df1 <- RT_anions
-  df1$Lower = (df1$RT-(0.05*df1$RT))
-  df1$Upper = (df1$RT+(0.05*df1$RT))
+  df1$Lower = (df1$RT-(0.075*df1$RT))
+  df1$Upper = (df1$RT+(0.075*df1$RT))
   
   
   return(df1)
@@ -820,217 +819,93 @@ mice_peaks_df <- bind_rows(mice_peaks_list_ion)
 nonlabelled <- mice_peaks_df[is.na(mice_peaks_df$Ion),]
 
 
+
 #labelling nonlabelled peaks
 #use df_anion search ranges (peaks that fall in between upper end of one and lower end of other)
 #so identify new consistent peaks
-#note slight overlap between Nitrate and phosphate search ranges
-
-#happy that peak 1 and peak 5 are their own peaks
-#pretty sure peak 4 needs to be divided
-#peak 3 needs some outliers put into sulfate
-#peak 2 is chloride 
+#note slight overlap between some RT ranges
 
 #A
 #peak 1 -> between Fluoride and Chloride 
-peak1 <- mice_peaks_df[(mice_peaks_df$Max > 3.374061 & mice_peaks_df$Max < 4.277300),] 
+peak1 <- mice_peaks_df[(mice_peaks_df$Max > 3.454396 & mice_peaks_df$Max < 4.164739),] 
 #examine peak
 peak1 %>% ggplot()+ geom_boxplot(aes(y=Max))
-median(peak1$Max) #3.530233 (4 outliers)
+median(peak1$Max) #3.548575 (number of outliers)
 sort(peak1$Max)
 
-#is it possible this is fluoride?^
-#some upper outliers?
-
-#################################################################################
-#executive decision that this is chloride, way too close not to be
-################################################################################
-#peak 2 -> between Chloride and Nitrite (maybe just chloride)
-peak2 <- mice_peaks_df[(mice_peaks_df$Max > 4.727542 & mice_peaks_df$Max < 5.057241),] 
-peak2 %>% ggplot()+ geom_boxplot(aes(y=Max))
-median(peak2$Max) #4.7367 
-range(peak2$Max)
-sort(peak2$Max)
-#Likely that this is chloride, as it is extremely close to the upper end of the RT search window
-#also very narrow range
-#median is 0.009 above upper end
-#test model as both a separate peak, and as chloride
-
+#no peaks found between Chloride and nitrite
 #no peaks found between nitrite and nitrate
 #no gap between nitrate and phosphate
+#no gap between Phosphate and sulfate
 
 #B
-#peak3 -> between Phosphate and Sulfate (some might belong in sulfate?)
-peak3 <- mice_peaks_df[(mice_peaks_df$Max > 8.397502 & mice_peaks_df$Max < 8.827463),]
-peak3 %>% ggplot()+ geom_boxplot(aes(y=Max)) #potentially outliers belong in sulfate? 
-median(peak3$Max) 
-sort(peak3$Max)
-#considerable number of outliers between 8.76 and 8.81 - very close to sulfate range
-
-#highest 3 (outliers) should be attributed to sulfate
-#as closer to sulfate range than others in this peak category
-#also happen all in day 2, and 2 outliers in day 1, visually inspect plots, looks same as sulfate
-
 #peak 4 -> >sulfate, less than 13 (may belong in sulfate?)
-peak4 <- mice_peaks_df[(mice_peaks_df$Max > 9.756670 & mice_peaks_df$Max < 13),] 
+peak4 <- mice_peaks_df[(mice_peaks_df$Max > 9.988972 & mice_peaks_df$Max < 13),] 
 peak4 %>% ggplot()+ geom_boxplot(aes(y=Max))
-median(peak4$Max) #mostly ~9.9 with a few on the upper end... maybe some belong in sulfate? -up to 10.8? maybe? idk
-#this is too great of a range to be one peak
-sort(peak4$Max)
+median(peak4$Max) 
 
-#using plots and looking by day
-#two different peaks visually
 
-#10.66 is the cutoff
+
 #C
-#peak 4.1
-peak4.1 <- mice_peaks_df[(mice_peaks_df$Max > 9.756670 & mice_peaks_df$Max < 10.66),]
-median(peak4.1$Max)
-#D
-peak4.2 <- mice_peaks_df[(mice_peaks_df$Max > 10.66 & mice_peaks_df$Max < 13),]
-median(peak4.2$Max)
-
-#E
 #peak 5 -> greater than 13. Definitely a different peak
 peak5 <- mice_peaks_df[(mice_peaks_df$Max > 13),] 
 peak5 %>% ggplot()+ geom_boxplot(aes(y=Max))
 median(peak5$Max)
 
-#results in a total of 5 unknown peaks
-#A - median =  3.530233
-#B - median =  8.655433
-#C - median = 9.905317
-#D - median = 10.81412
-#E - median = 13.05617
-
-
-#to handle:
-#assigning peak 2 to chloride
-#assigning peak 3 outliers to sulfate
-
-mice_peaks_df2 <- c()
-mice_peaks_df2 <- mice_peaks_df
-#peak 2 
-peak2$Ion <- "Chloride"
-range(peak2$Max)
-min <- min(peak2$Max)
-max <- max(peak2$Max)
-
-mice_peaks_df2 <- mice_peaks_df2 %>% 
-  mutate(Ion = if_else(
-    Max >= min & Max <= max,"Chloride", Ion
-  ))
-
-#chose nonlabelled2 to compare number of observations to initial nonlabelled dataset
-nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
-#happy it worked, copy over
-
-mice_peaks_df <- mice_peaks_df2
-
-#peak 3 outliers to sulfate
-sort(peak3$Max)
-#8.769 -8.804750
-
-mice_peaks_df2 <- mice_peaks_df2 %>%
-  mutate(Ion = if_else(
-    Max >= 8.768 & Max <= 8.805, "Sulfate", Ion
-  ))
-
-nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
-#happy it worked, copy over
-mice_peaks_df <- mice_peaks_df2
-
-
-#must edit peak data now after updating Chloride and sulfate outliers
+#results in a total of 3 unknown peaks
 #A
-#peak 1 -> between Fluoride and Chloride 
-maxpeak1 <- mice_peaks_df[which(mice_peaks_df$Ion=="Chloride"),]
-maxpeak1 <- min(maxpeak1$Max)
-peak1 <- mice_peaks_df[(mice_peaks_df$Max > 3.374061 & mice_peaks_df$Max < maxpeak1),] 
-#examine peak
-peak1 %>% ggplot()+ geom_boxplot(aes(y=Max))
-median(peak1$Max) #3.530233 (4 outliers)
-sort(peak1$Max)
+#B 
+#C 
+
+
+
+
+
+
+
+#A
+#peak a -> between Fluoride and Chloride 
+
+peaka <- peak1
 
 #B
 #peak3 -> between Phosphate and Sulfate (some might belong in sulfate?)
-minpeakb <- mice_peaks_df[which(mice_peaks_df$Ion=="Phosphate"),]
-minpeakb <- max(minpeakb$Max)
+peakb <- peak4
 
-maxpeakb <- mice_peaks_df[which(mice_peaks_df$Ion=="Sulfate"),]
-maxpeakb <- min(maxpeakb$Max)
-peak3 <- mice_peaks_df[(mice_peaks_df$Max > minpeakb & mice_peaks_df$Max < maxpeakb),]
-peak3 %>% ggplot()+ geom_boxplot(aes(y=Max)) #potentially outliers belong in sulfate? 
-median(peak3$Max)#8.647967
-
-
-
-#10.66 is the cutoff
-#C
-#peak 4.1
-minpeakc <- mice_peaks_df[which(mice_peaks_df$Ion=="Sulfate"),]
-minpeakc <- max(minpeakc$Max)
-peak4.1 <- mice_peaks_df[(mice_peaks_df$Max > minpeakc & mice_peaks_df$Max < 10.66),]
-median(peak4.1$Max)
-#D
-peak4.2 <- mice_peaks_df[(mice_peaks_df$Max > 10.66 & mice_peaks_df$Max < 13),]
-median(peak4.2$Max)
-
-#E
+#c
 #peak 5 -> greater than 13. Definitely a different peak
-peak5 <- mice_peaks_df[(mice_peaks_df$Max > 13),] 
-peak5 %>% ggplot()+ geom_boxplot(aes(y=Max))
-median(peak5$Max)
-
-#5 unidentified peaks 
-#A - median = 3.50233
-peak1
-#B - median =  8.647967
-peak3
-#C - median = 9.905317
-peak4.1
-#D - median = 10.81412
-peak4.2
-#E - median = 13.05702
-peak5
-
+peakc <- peak5
 
 #assign A 
-range(peak1$Max)
+range(peaka$Max)
+mice_peaks_df2 <- mice_peaks_df
 #choose the RTs associated with range of peak1 heights
 mice_peaks_df2 <- mice_peaks_df2 %>%
   mutate(Ion = if_else(
-    Max >= 3.435  & Max <= 3.784, "A", Ion
+    Max >= 3.4652  & Max <= 3.885434, "A", Ion
   ))
 
-#assign B (beneath outlier removal)
-range(peak3$Max)
+#assign B 
+range(peakb$Max)
 mice_peaks_df2 <- mice_peaks_df2 %>%
   mutate(Ion = if_else(
-    Max >= 8.6  & Max <= 8.677, "B", Ion
+    Max >= 10.06375  & Max <= 11.25437, "B", Ion
   ))
 
 #assign C
-range(peak4.1$Max)
+range(peakc$Max)
 mice_peaks_df2 <- mice_peaks_df2 %>%
   mutate(Ion = if_else(
-    Max >= 9.86  & Max <= 10.461, "C", Ion
+    Max >= 13.03865  & Max <= 14.64952, "C", Ion
   ))
 
-#assign D
-range(peak4.2$Max)
-mice_peaks_df2 <- mice_peaks_df2 %>%
-  mutate(Ion = if_else(
-    Max >= 10.6657  & Max <= 11.255, "D", Ion
-  ))
 
-#assign E
-range(peak5$Max)
-mice_peaks_df2 <- mice_peaks_df2 %>%
-  mutate(Ion = if_else(
-    Max >= 13.04  & Max <= 14.64, "E", Ion
-  ))
+nonlabelled2 <- mice_peaks_df2
+#peak arises for one mouse, for one day
+##it will be filtered out in the next filtering steps
 
-nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
+mice_peaks_df2
+
 #happy it worked, copy over
 
 mice_peaks_df <- mice_peaks_df2
@@ -1050,11 +925,8 @@ check.table <- table(check$ions)
 #All other ions appear in all 6 mice. 
 
 #filter steps
-mice_peaks_df2 <- mice_peaks_df2 %>% filter(Ion!= "Fluoride")
-
-mice_peaks_df2 <- mice_peaks_df2 %>% filter(Ion!= "Nitrite")
-#check
-unique(mice_peaks_df2$Ion)
+#remove NAs
+mice_peaks_df2 <- mice_peaks_df2 %>% filter(!is.na(Ion))
 #copy over
 mice_peaks_df <- mice_peaks_df2
 
@@ -1071,19 +943,14 @@ ion_day_counts <- mice_peaks_df %>%
   mutate(perc_days = no_days_present / total,
          appears_50 = perc_days >= 0.5)
 
-#A, Chloride, E, Sulfate all appear >50% time points in total
-#B, C, D and phosphate do not (note, phosphate very close @47%)
+#
+#omit fluoride and Nitrite
+mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "Fluoride")
+mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "Nitrite")
 
-#omit B, C, D and phosphate
-mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "B")
-mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "C")
-mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "D")
-mice_peaks_df <- mice_peaks_df %>% filter(Ion!= "Phosphate")
-#use mice_peaks_df2 to test out this reduced dataset
-
-mod.data <- pivot_wider(mice_peaks_df , names_from = Ion, values_from=AUC)
+mod.data <- pivot_wider(mice_peaks_df, id_cols=c(Mouse, Day), names_from = Ion, values_from=AUC)
 #select relevant columns
-mod.data <- mod.data[,(4:9)]
+mod.data <- mod.data[,(4:11)]
 
 #examine filtered variables
 #boxplots by mouse showing distribution of auc for each variable
@@ -1110,10 +977,9 @@ p_a
 p_e
 
 ##some variation shown between with above boxplots
-#however very similar median across mice, at each variable
-#except peak E mouse 6
 
-#NAs handling
+
+#NAs handling - imputation
 mod.data <- replace(mod.data, is.na(mod.data), 0)
 
 #check class
@@ -1125,7 +991,8 @@ class(mod.data$Chloride)
 
 
 
-full.model  <- lm(Day ~ Chloride + Sulfate + A + E, data=mod.data)
+full.model  <- lm(Day ~ Chloride + Sulfate + Phosphate + 
+                    A + B + C, data=mod.data)
 summary(full.model)
 
 #assumption checking
@@ -1137,7 +1004,8 @@ summary(full.model)
 
 ####################################################################
 #backwards selection
-drop1(full.model , test="F", scope= ~ Chloride + Sulfate +  A + E)
+drop1(full.model , test="F", scope= ~ Chloride + Sulfate + Phosphate +
+        + A + B + C)
 #peak E most non significant, drop
 
 #mod1, no E
@@ -1159,34 +1027,10 @@ drop1(mod.2 , test="F", scope= ~ Chloride + Sulfate)
 library(lme4)
 
 #mixed full model
-mixed.full.mod <- lmer(Day ~ Chloride + Sulfate + A+ E + (1|Mouse), data=mod.data)
+mixed.full.mod <- lmer(Day ~ Chloride + Sulfate + Phosphate + A
+                       + B + C + (1|Mouse), data=mod.data)
 summary(mixed.full.mod)
 
-#mixed mod 1
-mixed.mod.1 <- lmer(Day ~ Chloride + Sulfate + A + (1|Mouse), data=mod.data)
-summary(mixed.mod.1)
-
-#mixed mod 2
-mixed.mod.2 <- lmer(Day ~ Chloride + Sulfate + (1|Mouse), data=mod.data)
-summary(mixed.mod.2)
-
-##note, error for all mixed models. Random effect variance is zero. 
-#also note, mixed and simple linear give same model in all instances. 
-###could imply no variability between mice. Doesn't seem to be the case based on boxplots
-###look deeper - plot mouse as a factor/fixed effect to examine it more closely
-
-mod.data$Mouse <- as.factor(mod.data$Mouse)
-
-#fixed model with moue as a factor
-fixed.mod <- lm(Day ~ Chloride + Sulfate + Mouse, data=mod.data)
-summary(fixed.mod)
-#interestingly:
-##relatively small estimates, (absolute value mostly <1)
-##larger std errors (~2-3)
-##implies that estimate for each mouse not sig diff from zero
-##and high amount of within groups variation
-#makes sense that this forces mixed model to estimate variation due to mouse as 0
-#and high resiudal error
 
 
 #examine and compare models using cross validation
@@ -1209,7 +1053,8 @@ test <- mod.data[-training_indices,]
 
 #linear models
 ##modelling - training and test data##
-training.model <- lm(Day ~ Chloride + Sulfate + A + E, data=training)
+training.model <- lm(Day ~ Chloride + Sulfate + Phosphate + A
+                     + B + C, data=training)
 
 
 #backwards selection
