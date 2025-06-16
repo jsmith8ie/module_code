@@ -652,8 +652,8 @@ detect_peaks <- function(data){
       
       ##peak should be 3x baseline - 4.5 
       #min peak height of 3, based on graphs - optimal way to omit bumps/noise
-      #min peak height of 2, just above baseline- optimising number of peaks obtained
-      peaks <- findpeaks(peak_data1$Conductivity, minpeakdistance=300, minpeakheight=2)
+      #min peak height of 2.1, 0.5 above baseline- optimising number of peaks obtained
+      peaks <- findpeaks(peak_data1$Conductivity, minpeakdistance=250, minpeakheight=2.1)
       
       #index of start, end and max of each peak
       obs1 <- c(peaks[,3]) 
@@ -865,32 +865,32 @@ peak4 %>% ggplot()+ geom_boxplot(aes(y=Max))
 median(peak4$Max) #8.66
 sort(peak4$Max)
 #based on identification steps, likely these are part of phosphate and sulfate
-#natural divide point, >8.68 (large gap)
-#futher evidence - when selected as its own peak, phosphate and/or sulfate never identified in the same mouse/time point
-#higher values found in earlier days - trend of earlier eluting sulfate
+#natural divide point 8.789733 - after this, evident from plots sulfate - early days only, spread across mice
+#further evidence - when selected as its own peak, phosphate and/or sulfate never identified in the same mouse/time point
+#early days trend of earlier eluting sulfate
 #gets later as days go on in general - seems to be the case in plots
 
 
 #peak 5 -> >sulfate, less than 13
-peak5 <- mice_peaks_df[(mice_peaks_df$Max > 9.756670 & mice_peaks_df$Max < 13),] 
+peak5 <- mice_peaks_df[(mice_peaks_df$Max > 9.828 & mice_peaks_df$Max < 13),] 
 peak5 %>% ggplot()+ geom_boxplot(aes(y=Max))
 median(peak5$Max) 
 sort(peak5$Max) #too great of a range to be one peak
 #inspect plots 
 #some values attributable to sulfate
-#cutoff at ~10.09 (below this is sulfate)
+#cutoff at ~10.07 (below this is sulfate)
 #above is its own peak - peak A
 
 
 #peak 5.1 #sulfate
-peak5.1 <- mice_peaks_df[(mice_peaks_df$Max > 9.756670 & mice_peaks_df$Max < 10.06),]
+peak5.1 <- mice_peaks_df[(mice_peaks_df$Max >9.828 & mice_peaks_df$Max < 10.065),]
 median(peak5.1$Max)
 sort(peak5.1$Max)
 #based on plots, attribute to sulfate
 
 
 #A
-peak5.2 <- mice_peaks_df[(mice_peaks_df$Max > 10.06 & mice_peaks_df$Max < 13),]
+peak5.2 <- mice_peaks_df[(mice_peaks_df$Max > 10.064 & mice_peaks_df$Max < 13),]
 median(peak5.2$Max)
 sort(peak5.2$Max)
 
@@ -907,6 +907,8 @@ median(peak6$Max)
 ######################################################################################
 mice_peaks_df2 <- c()
 mice_peaks_df2 <- mice_peaks_df
+#make copy of reduced data
+
 
 #working with this (compare to nonlabelled)
 nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
@@ -947,12 +949,12 @@ mice_peaks_df2 <- mice_peaks_df2 %>%
 #peak 4 - between phosphate and sulfate
 mice_peaks_df2 <- mice_peaks_df2 %>% 
   mutate(Ion = if_else(
-    Max >= min(peak4$Max) & Max <= 8.68,"Phosphate", Ion
+    Max >= min(peak4$Max) & Max <= 8.789734,"Phosphate", Ion
   ))
 
 mice_peaks_df2 <- mice_peaks_df2 %>% 
   mutate(Ion = if_else(
-    Max >= 8.68 & Max <= max(peak4$Max),"Sulfate", Ion
+    Max >= 8.78975 & Max <= max(peak4$Max),"Sulfate", Ion
   ))
 
 
@@ -988,6 +990,7 @@ mice_peaks_df2 <- mice_peaks_df2 %>%
 
 
 
+
 nonlabelled2 <- mice_peaks_df2[is.na(mice_peaks_df2$Ion),]
 #zero...
 #happy it worked, copy over
@@ -1002,6 +1005,7 @@ mice_peaks_df <- mice_peaks_df2
 
 #####################################################################################
 #Filtering AUC that is likely noise - AUC that falls below q1 - 1.5*IQR
+#potentially not going to use this
 ################################################################################
 #log transform as AUC varies across orders of magnitude
 mice_peaks_df$log_auc <- log10(mice_peaks_df$AUC)
@@ -1053,6 +1057,16 @@ ion_day_counts <- mice_peaks_df %>%
 
 mod.data <- pivot_wider(mice_peaks_df, id_cols=c(Mouse, Day), names_from = Ion, values_from=AUC)
 
+#issue with some duplication of labels
+##all occur at split peaks.
+#since small amount of this occurs, remove smaller of the split peak
+#would get filtered out anyway, so no need to relabel
+
+#testing out removing part of a double peak for fluoride and A
+mice_peaks_df2 <- mice_peaks_df2[-c(390, 374, 318, 89, 93),]
+
+#test mod
+mod.data <- pivot_wider(mice_peaks_df2, id_cols=c(Mouse, Day), names_from = Ion, values_from=AUC)
 
 
 #examine filtered variables
@@ -1083,38 +1097,42 @@ p_sulfate
 p_fluoride
 p_a
 p_b
-
 ##some variation shown between mice with above boxplots
 
 
+#this is the mice peaks df before editing the search function etc
+mpdf_red 
+
+
+
+
 #NAs handling
-#imputation
+#pmm imputation may be inappropriate, as if there is no peak, it may just be that the peak grows/goes away
 library(mice)
 library(naniar)
 
 #examine missing data pattern
 #include this plot
 vis_miss(mod.data)
+#sulfate 10%
+#A 43%
+#Fluoride 22%
+#Phosphate 10%
+#B 64%
 
-#approx 50% data missing for A and B
-##omit? ##impute?
 
 
-#others 15% or less - impute
-small_mod <- mod.data[,c(1:6)]
+#examine plots/data to see if peaks present
+#if not, then NA does actually mean 0
 
-#shadow matrix
-as_shadow(small_mod)
-shadow_data=bind_shadow(small_mod)
-
-imputed <-complete(mice(shadow_data, method="pmm", m=5, maxit = 1))
+mod.data[is.na(mod.data)] <-0
 
 
 ##modelling##
 
 
 
-full.model  <- lm(Day ~ Fluoride + Chloride + Phosphate + Sulfate, data=imputed)
+full.model  <- lm(Day ~ Fluoride + Chloride + Phosphate + Sulfate + A + B, data=mod.data)
 summary(full.model)
 
 #assumption checking
@@ -1126,7 +1144,7 @@ summary(full.model)
 
 ####################################################################
 #backwards selection
-drop1(full.model , test="F", scope= ~ Fluoride + Chloride + Phosphate + Sulfate)
+drop1(full.model , test="F", scope= ~ Fluoride + Chloride + Phosphate + Sulfate + A + B)
 #all sig
 
 ######################################################################################
@@ -1137,7 +1155,7 @@ drop1(full.model , test="F", scope= ~ Fluoride + Chloride + Phosphate + Sulfate)
 library(lme4)
 
 #mixed full model
-mixed.full.mod <- lmer(Day ~ Fluoride + Chloride + Phosphate +(1|Mouse), data=imputed)
+mixed.full.mod <- lmer(Day ~ Fluoride + Chloride + Phosphate + A + B +(1|Mouse), data=mod.data)
 summary(mixed.full.mod)
 
 
@@ -1148,25 +1166,24 @@ summary(mixed.full.mod)
 
 #80 training
 #20 test
-imputed$Mouse <- as.character(imputed$Mouse)
+mod.data$Mouse <- as.character(mod.data$Mouse)
 set.seed(122)
-n <- nrow(imputed)
+n <- nrow(mod.data)
 
 training_indices <- sample(n, size=floor(0.8*n))
 
 #split data
-training <- imputed[training_indices,]
-test <- imputed[-training_indices,]
+training <- mod.data[training_indices,]
+test <- mod.data[-training_indices,]
 
 #linear model using training data
-
-linear.training <- lm(Day ~ Fluoride + Chloride + Phosphate, data=training)
+linear.training <- lm(Day ~ Fluoride + Chloride + Phosphate + A + B, data=training)
 
 
 #random model using training data
 require(lme4)
 #full mixed mod
-random.training <- lmer(Day ~ Fluoride + Chloride + Phosphate + (1|Mouse), data=training)
+random.training <- lmer(Day ~ Fluoride + Chloride + Phosphate + A + B + (1|Mouse), data=training)
 summary(random.training)
 
 
@@ -1180,9 +1197,7 @@ test$pred.ran <- predict(random.training, newdata=test)
 r2_random <- cor(test$pred.ran, test$Day)^2
 
 
-
 #examine PRESS
-
 #random model
 h0 <- hatvalues(random.training)
 
@@ -1202,6 +1217,7 @@ e1 <- residuals(linear.training)
 # Calculate PRESS
 press1 <- sum((e1 / (1 - h1))^2)
 press1
+
 
 
 
