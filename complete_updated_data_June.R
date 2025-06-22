@@ -13,6 +13,8 @@ library(readtext)
 #read in data from txt files
 ##reading in only mouse and control data for anions - data of interest
 #read in data
+
+setwd("C:\\Users\\jessi\\OneDrive\\Desktop\\Project\\Data\\text_files_anions_cations")
 file_list <- list.files(pattern = "\\.txt$")
 data_list <- list()
 
@@ -79,6 +81,7 @@ data <- do.call(rbind, data_list)
 #reading in standards etc
 #CHANGE WD
 
+setwd("C:\\Users\\jessi\\OneDrive\\Desktop\\Project\\Data\\text_files_standards_etc")
 file_list <- list.files(pattern = "\\.txt$")
 data_list <- list()
 
@@ -788,7 +791,8 @@ RT_anions <- std_peaks_df %>%
   group_by(Ion) %>%
   dplyr::summarise(RT = mean(Max))
 
-#find upper and lower limits (+/- 5%) - a bit wider than 5%, but preventing overlaps
+#find upper and lower limits (+/- 5%) 
+
 
 for(anion in vec_anions){
   df1 <- RT_anions
@@ -1054,6 +1058,7 @@ ion_day_counts <- mice_peaks_df %>%
 
 
 #all appear in at least 60% of time points
+p
 
 mod.data <- pivot_wider(mice_peaks_df, id_cols=c(Mouse, Day), names_from = Ion, values_from=AUC)
 
@@ -1063,7 +1068,7 @@ mod.data <- pivot_wider(mice_peaks_df, id_cols=c(Mouse, Day), names_from = Ion, 
 #would get filtered out anyway, so no need to relabel
 
 #testing out removing part of a double peak for fluoride and A
-mice_peaks_df2 <- mice_peaks_df2[-c(390, 374, 318, 89, 93),]
+mice_peaks_df2 <- mice_peaks_df2[-c(394, 379, 321, 92, 93),]
 
 #test mod
 mod.data <- pivot_wider(mice_peaks_df2, id_cols=c(Mouse, Day), names_from = Ion, values_from=AUC)
@@ -1100,10 +1105,6 @@ p_b
 ##some variation shown between mice with above boxplots
 
 
-#this is the mice peaks df before editing the search function etc
-mpdf_red 
-
-
 
 
 #NAs handling
@@ -1127,20 +1128,17 @@ vis_miss(mod.data)
 
 mod.data[is.na(mod.data)] <-0
 
-
+##########################################################################################
 ##modelling##
+############################################################################################
+#exploring potential models
 
 
-
+#linear
 full.model  <- lm(Day ~ Fluoride + Chloride + Phosphate + Sulfate + A + B, data=mod.data)
 summary(full.model)
 
-#assumption checking
-#errors normally distributed
 
-#errors have constant variance
-
-#errors independent
 
 ####################################################################
 #backwards selection
@@ -1148,19 +1146,16 @@ drop1(full.model , test="F", scope= ~ Fluoride + Chloride + Phosphate + Sulfate 
 #all sig
 
 ######################################################################################
-
-#make mixed models of all three models. 
 #random effect of mouse
 
 library(lme4)
 
 #mixed full model
-mixed.full.mod <- lmer(Day ~ Fluoride + Chloride + Phosphate + A + B +(1|Mouse), data=mod.data)
+mixed.full.mod <- lmer(Day ~ Fluoride + Chloride + Phosphate + +Sulfate + A + B +(1|Mouse), data=mod.data)
 summary(mixed.full.mod)
 
 
-#examine and compare models using cross validation
-
+#examine models using cross validation
 #use training and test data
 #80/20 split
 
@@ -1177,8 +1172,16 @@ training <- mod.data[training_indices,]
 test <- mod.data[-training_indices,]
 
 #linear model using training data
-linear.training <- lm(Day ~ Fluoride + Chloride + Phosphate + A + B, data=training)
+linear.training <- lm(Day ~ Fluoride + Chloride + Phosphate + Sulfate + A + B, data=training)
+summary(linear.training)
 
+#backwards selection for most parsimonious model
+drop1(linear.training , test="F", scope= ~ Fluoride + Chloride + Phosphate + Sulfate + A + B)
+#A is non-sig, drop (note that this actually increases RSS)
+
+linear.training1 <- lm(Day ~ Fluoride + Chloride + Phosphate + Sulfate+ B, data=training)
+summary(linear.training1)
+#all sig, proceed
 
 #random model using training data
 require(lme4)
@@ -1186,18 +1189,64 @@ require(lme4)
 random.training <- lmer(Day ~ Fluoride + Chloride + Phosphate + A + B + (1|Mouse), data=training)
 summary(random.training)
 
+#based on linear model, consider removing A as predictor
+random.training1 <- lmer(Day ~ Fluoride + Chloride + Phosphate + B + (1|Mouse), data=training)
+summary(random.training1)
 
-#test model
-#linear model
-test$pred.lin <- predict(linear.training, newdata=test)
-r2_linear <- cor(test$pred.lin, test$Day)^2
-#random model
+#compare both random models using anova - this is important, equivalent to drop 1
+anova(random.training, random.training1)
+#very similar, but as non sig p-value and lower AIC, prefer smaller model 
+#although deviance is higher, unsure
+
+
+####check models using plot and qqnorm(resid(mixed.mod)) to check assumptions
+#random.training
+#random.training1
+
+#examine model performance for both mixed models and simple models
+AIC(linear.training)
+AIC(random.training)
+AIC(linear.training1)
+AIC(random.training1)
+
+
+#model performance - random effects (conditional and marginal R2, training set)
+require(performance)
+
+model_performance(random.training)
+model_performance(random.training1)
+
+compare_performance(random.training, random.training1)
+
+#maybe - anova comparing random models
+
+###plot predictions using ggeffects and some error around it
+
+
+
+
+#Pearson's correlation
+#random full model
 test$pred.ran <- predict(random.training, newdata=test)
-#evaluate R squared
-r2_random <- cor(test$pred.ran, test$Day)^2
+R0 <- cor(test$Day, test$pred.ran, method="pearson")
+#random smaller model
+test$pred.ran1 <- predict(random.training1, newdata=test)
+R1 <- cor(test$Day, test$pred.ran1, method="pearson")
 
+#RMSE
+rmse0 <- sqrt(mean((test$Day- test$pred.ran)^2))
+rmse1 <- sqrt(mean((test$Day- test$pred.ran1)^2))
+
+#MAE
+library(Metrics)
+mae0 <- mae(test$Day, test$pred.ran)
+mae1 <- mae(test$Day, test$pred.ran1)
+
+###idk###
+#compare models
 
 #examine PRESS
+#lower random PRESS, better model
 #random model
 h0 <- hatvalues(random.training)
 
@@ -1220,31 +1269,50 @@ press1
 
 
 
+#similar AIC for both
+AIC(linear.training)
+AIC(random.training)
+AIC(linear.training1)
+AIC(random.training1)
+#actually slightly disimproves AIC with smaller model
+
+#more info:
+install.packages("stargazer")
+require(stargazer)
+
+#this shows sig of coefficients in random training model
+
+#both have similar AIC
+#smaller model has slightly better BIC
+
+stargazer(random.training1, type="text",
+          digits = 3, star.cutoffs = c(0.05, 0.01, 0.002),
+          digit.separator = "")
+stargazer(random.training, type="text",
+          digits = 3, star.cutoffs = c(0.05, 0.01, 0.002),
+          digit.separator = "")
 
 
 
 #save data
-#set wd as 1_saved_datasets
-write.csv(anions, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/anions.csv", row.names=FALSE)
 
-write.csv(control_data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/control_data.csv", row.names=FALSE)
+#ran script from scratch for all data saved with 190625 suffix
+write.csv(anions, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/anions_190625.csv", row.names=FALSE)
 
-write.csv(data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/data.csv", row.names=FALSE)
+write.csv(data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/tidy_data_190625.csv", row.names=FALSE)
 
-write.csv(mice_data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/mice_data.csv", row.names=FALSE)
+write.csv(mice_data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/mice_data_190625.csv", row.names=FALSE)
 
 #note- filtered df
-write.csv(mice_peaks_df, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/mice_peaks_df.csv", row.names=FALSE)
+write.csv(mice_peaks_df, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/mice_peaks_df_190625.csv", row.names=FALSE)
 
-#note - unfiltered df
-write.csv(mice_peaks_df2, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/mice_peaks_df2.csv", row.names=FALSE)
 
-write.csv(RT_anions, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/RT_anions.csv", row.names=FALSE)
+write.csv(RT_anions, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/RT_anions_190625.csv", row.names=FALSE)
 
 #filtered to one day
-write.csv(std_data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/std_data.csv", row.names=FALSE)
+write.csv(std_data, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/std_data_190625.csv", row.names=FALSE)
 
-write.csv(std_peaks_df, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/std_peaks_df.csv", row.names=FALSE)
+write.csv(std_peaks_df, "C:/Users/jessi/OneDrive/Desktop/Project/1_saved_datasets/std_peaks_df_190625.csv", row.names=FALSE)
 
 
 #read in data
