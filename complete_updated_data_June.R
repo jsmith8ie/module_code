@@ -1067,7 +1067,7 @@ mod.data <- pivot_wider(mice_peaks_df, id_cols=c(Mouse, Day), names_from = Ion, 
 #since small amount of this occurs, remove smaller of the split peak
 #would get filtered out anyway, so no need to relabel
 
-#testing out removing part of a double peak for fluoride and A
+#removing part of a double peak for fluoride and A
 mice_peaks_df2 <- mice_peaks_df2[-c(394, 379, 321, 92, 93),]
 
 #test mod
@@ -1218,12 +1218,6 @@ model_performance(random.training1)
 
 compare_performance(random.training, random.training1)
 
-#maybe - anova comparing random models
-
-###plot predictions using ggeffects and some error around it
-
-
-
 
 #Pearson's correlation
 #random full model
@@ -1233,14 +1227,130 @@ R0 <- cor(test$Day, test$pred.ran, method="pearson")
 test$pred.ran1 <- predict(random.training1, newdata=test)
 R1 <- cor(test$Day, test$pred.ran1, method="pearson")
 
-#RMSE
-rmse0 <- sqrt(mean((test$Day- test$pred.ran)^2))
-rmse1 <- sqrt(mean((test$Day- test$pred.ran1)^2))
+#examine as a regression to examine bias
+reg <- lm(test$pred.ran ~ test$Day)
+summary(reg)
+#intercept ~1.5, systematically predicting too high of a PMSI day
+#slope pretty close to 1, good scaling
 
-#MAE
+reg1 <- lm(test$pred.ran1 ~ test$Day)
+summary(reg1)
+#pretty much exactly the same
+
+
+#plots - potentially not use - more info in the rmse/ mae plots
+#slope
+perfect_cor <- data.frame(
+  actual = range(test$Day),
+  predicted = range(test$pred.ran),
+  line = "Correlation"
+)
+
+cor0 <- ggplot(test, aes(x=Day, y=pred.ran)) + 
+  geom_point(color="blue", alpha=0.6) + 
+  geom_smooth(aes(color="Model Fit"), method = "lm", se = FALSE, linetype = "solid") + 
+  geom_line(data = perfect_cor, aes(x = actual, y = predicted, color = line), size = 1.2) +
+  scale_color_manual(
+    name = "Line",
+    values = c("Model Fit" = "red", "Perfect Correlation" = "darkgreen")
+  ) +
+  labs(title="Full Model (Mixed.Mod)",
+       x = "Days",
+       y = "Predicted Days") +
+  theme_bw()
+
+cor1 <- ggplot(test, aes(x=Day, y=pred.ran1)) + 
+  geom_point(color="blue", alpha=0.6) + 
+  geom_smooth(aes(color="Model Fit"), method = "lm", se = FALSE, linetype = "solid") + 
+  geom_line(data = perfect_cor, aes(x = actual, y = predicted, color = line), size = 1.2) +
+  scale_color_manual(
+    name = "Line",
+    values = c("Model Fit" = "red", "Perfect Correlation" = "darkgreen")
+  ) +
+  labs(title="Reduced Model (Mixed.Mod1)",
+       x = "Days",
+       y = "Predicted Days") +
+  theme_bw()
+
+#put together
+library(patchwork)
+cor0 + cor1
+
+
+
+#Test data RMSE and MAE values
+#from performance::model_performance
+rmse0 <- 4.826
+rmse1 <- 4.786
+
 library(Metrics)
 mae0 <- mae(test$Day, test$pred.ran)
 mae1 <- mae(test$Day, test$pred.ran1)
+
+
+
+#this is essentially previous plot with correlation, with more info
+#full mod
+ggplot(test, aes(x = Day, y = pred.ran)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
+  labs(title = "Full Model: Actual vs Predicted PMSI",
+       subtitle = paste0("RMSE = ", round(rmse0, 2),
+                         ", MAE = ", round(mae0, 2),
+                         ", IQR PMSI = ", round(IQR.day, 2)),
+       x="PMSI Day (Actual)",
+       y="PMSI Day (Predicted)") 
+
+ggplot(test, aes(x = Day, y = pred.ran1)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
+  labs(title = "Full Model: Actual vs Predicted PMSI",
+       subtitle = paste0("RMSE = ", round(rmse1, 2),
+                         ", MAE = ", round(mae1, 2),
+                         ", IQR = ", round(IQR.day, 2)),
+       x="PMSI Day (Actual)",
+       y="PMSI Day (Predicted)") 
+
+
+#examining IQR of days - contextualise RMSE and MAE
+IQR.day <- IQR(mod.data$Day) #~13 
+median <- median(mod.data$Day) #14
+
+#context - ratio of rmse/mae to iqr
+#full model 
+rmse0_norm <-rmse0/IQR.day #~0.37
+mae0_norm <- mae0/IQR.day #0.29
+
+#reduced model
+rmse1_norm <-rmse1/IQR.day ##~0.36
+mae1_norm <- mae1/IQR.day #~0.28
+#all perform well in the context of the data
+#very little difference between models, smaller model performs slightly better
+
+#maybe - anova comparing random models
+
+###plot predictions using ggeffects and some error around it
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ###idk###
 #compare models
@@ -1280,11 +1390,7 @@ AIC(random.training1)
 install.packages("stargazer")
 require(stargazer)
 
-#this shows sig of coefficients in random training model
-
-#both have similar AIC
-#smaller model has slightly better BIC
-
+#this shows sig of coefficients in random training model - tabulate in report
 stargazer(random.training1, type="text",
           digits = 3, star.cutoffs = c(0.05, 0.01, 0.002),
           digit.separator = "")
